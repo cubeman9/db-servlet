@@ -15,11 +15,13 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class DbServlet extends HttpServlet {
     private AtomicInteger requestCount = new AtomicInteger();
-    private AtomicLong startTime = new AtomicLong(0);
+    private AtomicLong startTime = new AtomicLong();
+    private List<AccountEntity> accountEntityList = Collections.synchronizedList(new ArrayList<AccountEntity>());
 
     public void init() {
-        requestCount = new AtomicInteger(0);
-        startTime.addAndGet(System.currentTimeMillis() / 1000L);
+        accountEntityList = Utils.dbToEntityList();
+        requestCount.set(0);
+        startTime.set(System.currentTimeMillis() / 1000L);
     }
 
     public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -32,15 +34,15 @@ public class DbServlet extends HttpServlet {
 
         String actionString = request.getParameter("action");
 
-        if (actionString.equals("setRequestCountToZero")) {
-            requestCount = new AtomicInteger(0);
+        if (actionString.equals("resetRequestCount")) {
+            requestCount.set(0);
             String jsonStr = "{\"action\": " + "\"" + actionString + "\"" +
                     ",\"requestCount\": " + requestCount.intValue() +
                     ",\"timeFromInit\": " + timeFromInit + "}";
             out.println(jsonStr);
         }
 
-        if (actionString.equals("sendRequestCountInfo")) {
+        if (actionString.equals("getRequestCount")) {
             String jsonStr = "{\"action\": " + "\"" + actionString + "\"" +
                     ",\"requestCount\": " + requestCount.intValue() +
                     ",\"timeFromInit\": " + timeFromInit + "}";
@@ -64,14 +66,17 @@ public class DbServlet extends HttpServlet {
                 int balance = Integer.parseInt(balanceString);
 
                 AccountService.addAmount(id, balance);
+                accountEntityList = Utils.dbToEntityList();
+                for (int i = 0; i < accountEntityList.size(); i++) {
+                    if (accountEntityList.get(i).getId() == id) {
                         String jsonStr = "{\"id\": " + id +
                                 ",\"balance\": " + AccountService.getAmount(id) +
                                 ",\"action\": " + "\"" + actionString + "\"" +
                                 ",\"requestCount\": " + requestCount.intValue() +
                                 ",\"timeFromInit\": " + timeFromInit + "}";
                         out.println(jsonStr);
-
-
+                    }
+                }
             }
         }
     }
